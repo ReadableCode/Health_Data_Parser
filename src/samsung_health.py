@@ -106,7 +106,7 @@ def get_daily_ped(include_offset=True):
 
     df_pedometer_data = get_df_from_csv(path_pedometer_file)
 
-    df_pedometer_data = df_pedometer_data.dropna(subset="source_info")
+    df_pedometer_data = df_pedometer_data.dropna(subset=["source_info"])
 
     df_pedometer_data["create_time"] = pd.to_datetime(df_pedometer_data["create_time"])
 
@@ -114,47 +114,41 @@ def get_daily_ped(include_offset=True):
     df_pedometer_data["time_offset_timedelta"] = parse_offset("UTC-0600")
 
     if include_offset:
-        # Apply the offset to start_time
-        df_pedometer_data["create_time"] = (
-            df_pedometer_data["create_time"]
-            + df_pedometer_data["time_offset_timedelta"]
-        )
+        # Apply the offset to create_time
+        df_pedometer_data["create_time"] += df_pedometer_data["time_offset_timedelta"]
 
     df_pedometer_data["date"] = df_pedometer_data["create_time"].dt.date
 
-    # print("duplicated")
-    # pprint_df(
-    #     df_pedometer_data[df_pedometer_data.duplicated(subset="date", keep=False)]
-    # )
-    # print(
-    #     df_pedometer_data[df_pedometer_data.duplicated(subset="date", keep=False)][
-    #         "date"
-    #     ]
-    #     .unique()
-    #     .tolist()
-    # )
     print("df_pedometer_data filters")
     pprint_df(
         df_pedometer_data[df_pedometer_data["date"].isin(ls_test_dates)].tail(100)
     )
 
+    # ✅ Ensure sorting before `idxmax()` (Sort by date and create_time in ascending order)
+    df_pedometer_data = df_pedometer_data.sort_values(["date", "create_time"])
+
+    # ✅ Keep only the row with the **latest create_time** per date
+    df_pedometer_data = df_pedometer_data.loc[
+        df_pedometer_data.groupby("date")["create_time"].idxmax()
+    ].reset_index(drop=True)
+
     columns = [
         "date",
         # "create_sh_ver",
-        # "step_count",
+        "step_count",
         # "binning_data",
-        # "active_time",
+        "active_time",
         # "recommendation",
         # "modify_sh_ver",
-        # "run_step_count",
+        "run_step_count",
         # "update_time",
         # "source_package_name",
         # "create_time",
         # "source_info",
         # "speed",
-        # "distance",
-        # "calorie",
-        # "walk_step_count",
+        "distance",
+        "calorie",
+        "walk_step_count",
         # "deviceuuid",
         # "pkg_name",
         # "healthy_step",
@@ -162,15 +156,8 @@ def get_daily_ped(include_offset=True):
         # "datauuid",
         # "day_time",
     ]
-    agg = {
-        "step_count": "max",
-        "active_time": "max",
-        "distance": "max",
-        "calorie": "max",
-        "walk_step_count": "max",
-    }
 
-    df_pedometer_data = df_pedometer_data.groupby(columns).agg(agg).reset_index()
+    df_pedometer_data = df_pedometer_data[columns]
 
     return df_pedometer_data
 
