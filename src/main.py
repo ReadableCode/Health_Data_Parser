@@ -16,7 +16,7 @@ from utils.display_tools import pprint_df
 # Functions #
 
 
-def show_graph(df, columns, date_col_name = "date"):
+def show_graph(df, columns, date_col_name="date"):
     df[date_col_name] = pd.to_datetime(df[date_col_name])
     df.set_index(date_col_name, inplace=True)
     df[columns].plot()
