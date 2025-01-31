@@ -2,11 +2,12 @@
 # Imports #
 
 
+from datetime import date  # noqa: F401
 from pathlib import Path
 
 import pandas as pd
 
-from utils.display_tools import pprint_df
+from utils.display_tools import pprint_df, pprint_dict, pprint_ls  # noqa: F401
 
 # %%
 # Variables #
@@ -52,14 +53,12 @@ def get_df_from_csv(path_file):
 
 
 def get_step_daily_trend():
+    file_name_part = "com.samsung.shealth.step_daily_trend."
     ls_files_in_dir = [
         x for x in path_most_recent_date_extraction.iterdir() if x.is_file()
     ]
 
-    path_step_count_file = [
-        x for x in ls_files_in_dir if "com.samsung.shealth.step_daily_trend." in x.name
-    ][0]
-    print(path_step_count_file)
+    path_step_count_file = [x for x in ls_files_in_dir if file_name_part in x.name][0]
 
     df_step_daily_trend = get_df_from_csv(path_step_count_file)
 
@@ -94,13 +93,122 @@ def get_step_daily_trend():
 
 
 # %%
+# Pedometer #
+
+
+def get_daily_ped(include_offset=True):
+    file_name_part = "com.samsung.shealth.tracker.pedometer_day_summary."
+    ls_files_in_dir = [
+        x for x in path_most_recent_date_extraction.iterdir() if x.is_file()
+    ]
+
+    path_pedometer_file = [x for x in ls_files_in_dir if file_name_part in x.name][0]
+
+    df_pedometer_data = get_df_from_csv(path_pedometer_file)
+
+    df_pedometer_data = df_pedometer_data.dropna(subset="source_info")
+
+    df_pedometer_data["create_time"] = pd.to_datetime(df_pedometer_data["create_time"])
+
+    # Apply offset conversion
+    df_pedometer_data["time_offset_timedelta"] = parse_offset("UTC-0600")
+
+    if include_offset:
+        # Apply the offset to start_time
+        df_pedometer_data["create_time"] = (
+            df_pedometer_data["create_time"]
+            + df_pedometer_data["time_offset_timedelta"]
+        )
+
+    df_pedometer_data["date"] = df_pedometer_data["create_time"].dt.date
+
+    # print("duplicated")
+    # pprint_df(
+    #     df_pedometer_data[df_pedometer_data.duplicated(subset="date", keep=False)]
+    # )
+    # print(
+    #     df_pedometer_data[df_pedometer_data.duplicated(subset="date", keep=False)][
+    #         "date"
+    #     ]
+    #     .unique()
+    #     .tolist()
+    # )
+    print("df_pedometer_data filters")
+    pprint_df(
+        df_pedometer_data[df_pedometer_data["date"].isin(ls_test_dates)].tail(100)
+    )
+
+    columns = [
+        "date",
+        # "create_sh_ver",
+        # "step_count",
+        # "binning_data",
+        # "active_time",
+        # "recommendation",
+        # "modify_sh_ver",
+        # "run_step_count",
+        # "update_time",
+        # "source_package_name",
+        # "create_time",
+        # "source_info",
+        # "speed",
+        # "distance",
+        # "calorie",
+        # "walk_step_count",
+        # "deviceuuid",
+        # "pkg_name",
+        # "healthy_step",
+        # "achievement",
+        # "datauuid",
+        # "day_time",
+    ]
+    agg = {
+        "step_count": "max",
+        "active_time": "max",
+        "distance": "max",
+        "calorie": "max",
+        "walk_step_count": "max",
+    }
+
+    df_pedometer_data = df_pedometer_data.groupby(columns).agg(agg).reset_index()
+
+    return df_pedometer_data
+
+
+# %%
 # Main #
 
 if __name__ == "__main__":
-    df_step_daily_trend_filtered = get_step_daily_trend()
+    ls_test_dates = [
+        # date(2018, 6, 17),
+        # date(2019, 3, 24),
+        # date(2021, 11, 21),
+        date(2023, 1, 3),
+        # date(2023, 1, 4),
+        # date(2023, 1, 2),
+        # date(2023, 1, 5),
+    ]
 
-    pprint_df(df_step_daily_trend_filtered.tail(50))
-    print(df_step_daily_trend_filtered.columns.tolist())
+    df_step_daily_trend = get_step_daily_trend()
 
+    print("df_step_daily_trend")
+    pprint_df(df_step_daily_trend.tail(10))
+
+    include_offset = True
+    df_pedometer_data = get_daily_ped(include_offset=include_offset)
+
+    print("df_pedometer_data")
+    pprint_df(df_pedometer_data.tail(10))
+
+    print("df_step_daily_trend filters")
+    pprint_df(
+        df_step_daily_trend[df_step_daily_trend["date"].isin(ls_test_dates)].tail(100)
+    )
+    print("df_pedometer_data filters")
+    pprint_df(
+        df_pedometer_data[df_pedometer_data["date"].isin(ls_test_dates)].tail(100)
+    )
+
+# 1/3/2023 should be 177
 
 # %%
